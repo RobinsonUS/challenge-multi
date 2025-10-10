@@ -82,13 +82,13 @@ export default class PreloaderScene extends Phaser.Scene {
     })
 
     this.load.image(TextureKey.BtnCursor, 'btn-cursor.png')
-    this.load.image(TextureKey.Spike, 'spike.png')
     this.load.image(TextureKey.Enemy2, 'enemy2.png')
     this.load.image(TextureKey.Hill, 'bg-hills.png')
     this.load.image(TextureKey.Hill2, 'bg-hills2.png')
     this.load.image(TextureKey.Volcanos, 'bg-volcanos.png')
     this.load.image(TextureKey.Volcanos2, 'bg-volcanos2.png')
     this.load.image(TextureKey.Bump, 'bump.png')
+    this.load.image(TextureKey.Spike, 'spike.png')
     this.load.image(TextureKey.Grid2, 'grid2.png')
 
     this.load.audio(AudioKey.Music, 'audio/music.mp3')
@@ -101,6 +101,7 @@ export default class PreloaderScene extends Phaser.Scene {
     this.load.audio(AudioKey.SfxUnlock, 'audio/sfx-unlock.mp3')
     this.load.audio(AudioKey.SfxButton, 'audio/sfx-button.mp3')
     this.load.audio(AudioKey.SfxShake, 'audio/sfx-shake.mp3')
+    this.load.audio(AudioKey.SfxSpike, 'audio/sfx-spike.mp3')
 
     const { width, height } = this.scale
     this.add

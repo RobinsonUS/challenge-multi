@@ -5,6 +5,7 @@ import {
   COIN_SIZE,
   ENEMY2_JUMP_DELAY,
   ENEMY_VELOCITY,
+  MOVING_PLATFORM_SPEED,
   NUM_LEVELS_BY_WORLD,
   PlayerMode,
   TILE_SIZE,
@@ -106,7 +107,9 @@ export default class GameScene extends Phaser.Scene {
   private lava!: Phaser.Physics.Arcade.StaticGroup
   private lavaballs!: Phaser.Physics.Arcade.Group
   private platformsHitbox!: Phaser.Physics.Arcade.StaticGroup
-  private spikes!: Phaser.Physics.Arcade.StaticGroup
+  private spikes!: Phaser.Physics.Arcade.Group
+  private spikesTriggers!: Phaser.Physics.Arcade.StaticGroup
+  private spikesEmitter!: Phaser.GameObjects.Particles.ParticleEmitter
   private spikyBalls!: Phaser.Physics.Arcade.Group
   private spikyBallsStartPos!: Phaser.GameObjects.Group
   private coins!: Phaser.Physics.Arcade.StaticGroup
@@ -137,6 +140,7 @@ export default class GameScene extends Phaser.Scene {
   private fallingBlocksCollider!: Phaser.Physics.Arcade.Collider
   private eventBlocksCollider!: Phaser.Physics.Arcade.Collider
   private fallingBlocksTriggersOverlap!: Phaser.Physics.Arcade.Collider
+  private fallingSpikesTriggersOverlap!: Phaser.Physics.Arcade.Collider
   private transformersTriggers!: Phaser.Physics.Arcade.Collider
   private checkpointTrigger!: Phaser.Physics.Arcade.Collider
   private coinsTriggers!: Phaser.Physics.Arcade.Collider
@@ -298,11 +302,22 @@ export default class GameScene extends Phaser.Scene {
     this.target = new Target(this, this.levelData.target.x, this.levelData.target.y)
 
     // Pics
-    this.spikes = this.physics.add.staticGroup()
+    this.spikes = this.physics.add.group({
+      allowGravity: false,
+    })
+    this.spikesTriggers = this.physics.add.staticGroup()
     const spikesPos = this.levelData.spikes ?? []
     for (let i = 0; i < spikesPos.length; i++) {
       this.addSpikes(spikesPos[i])
     }
+    this.spikesEmitter = this.add.particles(0, 0, TextureKey.ParticleJump, {
+      lifespan: 300,
+      speedX: { min: -200, max: 200 },
+      speedY: { min: -200, max: 0 },
+      scale: { start: 1, end: 0 },
+      emitting: false,
+      quantity: 5,
+    })
 
     // Boules de lave
     this.lavaballs = this.physics.add.group({
@@ -423,6 +438,14 @@ export default class GameScene extends Phaser.Scene {
 
     // Mort du joueur
     this.physics.add.overlap(this.player, this.spikes, this.die, undefined, this)
+    this.physics.add.overlap(this.platformsHitbox, this.spikes, this.destroySpike, undefined, this)
+    this.fallingSpikesTriggersOverlap = this.physics.add.overlap(
+      this.player,
+      this.spikesTriggers,
+      this.handleFallingSpikeCollision,
+      undefined,
+      this
+    )
     this.physics.add.overlap(this.player, this.lava, this.die, undefined, this)
     this.physics.add.overlap(this.player, this.fireballs, this.die, undefined, this)
     this.physics.add.overlap(this.player, this.lavaballs, this.die, undefined, this)
@@ -896,6 +919,12 @@ export default class GameScene extends Phaser.Scene {
     }
   }
 
+  destroySpike: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_: any, spike: any) => {
+    this.spikesEmitter.emitParticleAt(spike.x, spike.y)
+    spike.destroy()
+    this.audioManager.playSfx(AudioKey.SfxSpike)
+  }
+
   destroyFireball: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_: any, fireball: any) => {
     fireball.destroy()
   }
@@ -1028,6 +1057,7 @@ export default class GameScene extends Phaser.Scene {
     this.fallingBlocksCollider.active = false
     this.eventBlocksCollider.active = false
     this.fallingBlocksTriggersOverlap.active = false
+    this.fallingSpikesTriggersOverlap.active = false
     this.targetTrigger.active = false
     this.transformersTriggers.active = false
     this.coinsTriggers.active = false
@@ -1179,7 +1209,7 @@ export default class GameScene extends Phaser.Scene {
   }
 
   addSpikes(data: LevelSpike) {
-    const { x, y, dir = 0, num = 1 } = data
+    const { x, y, dir = 0, num = 1, falling = false } = data
 
     for (let i = 0; i < num; i++) {
       const isVertical = dir === 1 || dir === 3
@@ -1191,6 +1221,12 @@ export default class GameScene extends Phaser.Scene {
       )
 
       this.spikes.add(spike)
+
+      if (falling) {
+        const trigger = this.add.zone(spike.x, spike.y - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE * 6).setOrigin(0.5, 0)
+        trigger.setData('spike', spike)
+        this.spikesTriggers.add(trigger)
+      }
       this.addMapItem(x, y, { type: EditorType.Spike, object: spike, data })
     }
   }
@@ -1290,6 +1326,16 @@ export default class GameScene extends Phaser.Scene {
       return
     fallingBlockTrigger.setData('isTriggered', true)
     fallingBlock.fall()
+  }
+
+  handleFallingSpikeCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (
+    _: any,
+    fallingSpikeTrigger: any
+  ) => {
+    const spike = fallingSpikeTrigger.getData('spike') as Spike
+    if (fallingSpikeTrigger.getData('isTriggered')) return
+    fallingSpikeTrigger.setData('isTriggered', true)
+    spike.fall()
   }
 
   handleCoin: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_: any, object: any) => {
@@ -1441,7 +1487,9 @@ export default class GameScene extends Phaser.Scene {
         const deltaX = follower.vec.x - platform.x
         const deltaY = follower.vec.y - platform.y
         platform.setPosition(follower.vec.x, follower.vec.y)
-        follower.t += delta / 5000
+        const pathLength = follower.path.getLength()
+        const duration = (pathLength / MOVING_PLATFORM_SPEED) * 1000
+        follower.t += delta / duration
         if (follower.t >= 1) {
           follower.t = 0
         }

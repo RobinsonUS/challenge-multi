@@ -132,6 +132,7 @@ export interface LevelSpikyBall extends LevelPosition {
 export interface LevelSpike extends LevelPosition {
   num?: number
   dir?: number
+  falling?: boolean
 }
 
 export interface LevelCannon extends LevelPosition {

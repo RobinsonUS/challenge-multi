@@ -9,6 +9,7 @@ enum AudioKey {
   SfxUnlock = 'sfxUnlock',
   SfxButton = 'sfxButton',
   SfxShake = 'sfxShake',
+  SfxSpike = 'sfxSpike',
 }
 
 export default AudioKey
