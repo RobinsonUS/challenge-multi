@@ -1,10 +1,24 @@
 import DataKey from '../consts/data-key'
-import { DataLevel, PlayerDataLevel } from '../consts/level'
+import { DataLevel, PlayerDataLevel, Trail, TRAIL_COSTS } from '../consts/level'
 import { levelsData } from '../levels'
 
 export function getLevelTotalCoins(level: number | DataLevel) {
   const data = typeof level === 'number' ? levelsData[`level${level}`] : level
   return (data?.coins || []).reduce((acc, { numX, numY }) => acc + Math.max(numX || 1, numY || 1), 0)
+}
+
+export function getTotalCoins() {
+  const unlockedLevels = getUnlockedLevels()
+  let coins = unlockedLevels.reduce((total, level) => {
+    return total + (level?.coins || 0)
+  }, 0)
+
+  getUnlockedTrails().forEach((trail) => {
+    const trailData = TRAIL_COSTS[trail]
+    coins -= trailData.cost
+  })
+
+  return coins
 }
 
 export function getUnlockedLevels(): PlayerDataLevel[] {
@@ -70,4 +84,32 @@ export function setCurrentWorld(world: number) {
 
 export function getCurrentWorld() {
   return parseInt(localStorage.getItem(DataKey.CurrentWorld) ?? '1', 10)
+}
+
+export function getUnlockedTrails(): Trail[] {
+  const unlockedTrailsString = localStorage.getItem(DataKey.UnlockedTrails)
+  if (unlockedTrailsString) {
+    return JSON.parse(unlockedTrailsString)
+  } else {
+    const trails = [Trail.None]
+    localStorage.setItem(DataKey.UnlockedTrails, JSON.stringify(trails))
+    return trails
+  }
+}
+
+export function unlockTrail(trail: Trail) {
+  const unlockedTrails = getUnlockedTrails()
+  if (unlockedTrails.includes(trail)) return
+
+  unlockedTrails.push(trail)
+  unlockedTrails.sort((a, b) => a - b)
+  localStorage.setItem(DataKey.UnlockedTrails, JSON.stringify(unlockedTrails))
+}
+
+export function setCurrentTrail(trail: number) {
+  localStorage.setItem(DataKey.CurrentTrail, trail.toString())
+}
+
+export function getCurrentTrail() {
+  return parseInt(localStorage.getItem(DataKey.CurrentTrail) ?? '0', 10)
 }

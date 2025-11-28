@@ -14,7 +14,9 @@ import {
   PLAYER_VELOCITY,
   PlayerMode,
   PLAYER_SIZE,
+  DepthLayer,
 } from '../consts/globals'
+import { Trail } from '../consts/level'
 import TextureKey from '../consts/texture-key'
 import GameScene from '../scenes/game-scene'
 import OneWayPlatform from './one-way-platform'
@@ -41,6 +43,9 @@ export default class Player extends Phaser.GameObjects.Container {
   private isJumping = false
   private jumpBufferingTime = 0
   private emitter!: Phaser.GameObjects.Particles.ParticleEmitter
+  private trailEmitter!: Phaser.GameObjects.Particles.ParticleEmitter
+  private trail: Trail
+  private isPlaceholder: boolean
   public stickedPlatform: OneWayPlatform | null
 
   get sprite() {
@@ -51,14 +56,17 @@ export default class Player extends Phaser.GameObjects.Container {
     return this._isDead
   }
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, trail: Trail = Trail.None, isPlaceholder: boolean = false) {
     super(scene, x, y)
+    this.trail = trail
+    this.isPlaceholder = isPlaceholder
     this._sprite = scene.add.rectangle(0, 0, PLAYER_SIZE, PLAYER_SIZE, 0xfff1e8)
     this.stickedPlatform = null
     this.add(this._sprite)
     this.setSize(PLAYER_SIZE, PLAYER_SIZE)
     scene.physics.world.enable(this)
     scene.add.existing(this)
+    this.setDepth(DepthLayer.Bobby)
 
     // Particules du joueur lors du saut
     this.emitter = scene.add.particles(0, 0, TextureKey.ParticleJump, {
@@ -69,6 +77,21 @@ export default class Player extends Phaser.GameObjects.Container {
       emitting: false,
       quantity: 5,
     })
+
+    this.trailEmitter = scene.add.particles(0, 0, TextureKey.ParticleJump, {
+      lifespan: 400,
+      speed: { min: -50, max: 50 },
+      scale: { start: 1.5, end: 0 },
+      tint: 0xcccccc,
+      alpha: { start: 0.5, end: 0 },
+      emitting: false,
+      quantity: 2,
+    })
+    this.trailEmitter.startFollow(this).setDepth(DepthLayer.Trail)
+
+    if (this.trail === Trail.Particles) {
+      this.trailEmitter.start()
+    }
   }
 
   update(params: PlayerUpdateParams) {
@@ -179,10 +202,14 @@ export default class Player extends Phaser.GameObjects.Container {
   }
 
   jump() {
-    const scene = this.scene as GameScene
-    if (!scene.canMove) return
-    if (scene.playerMode === PlayerMode.Flappy) {
-      return this.flappyJump()
+    let scene: GameScene | null = null
+
+    if (!this.isPlaceholder) {
+      scene = this.scene as GameScene
+      if (!scene.canMove) return
+      if (scene.playerMode === PlayerMode.Flappy) {
+        return this.flappyJump()
+      }
     }
 
     this.isUpKeyPressed = true
@@ -192,7 +219,7 @@ export default class Player extends Phaser.GameObjects.Container {
     const shouldDoubleJump = !isGrounded && this.jumpCount > 0 && this.jumpCount < PLAYER_MAX_JUMPS
     let playerAlmostLanded = false
     if (shouldDoubleJump && playerBody.velocity.y > 0) {
-      playerAlmostLanded = scene.checkPlayerRightAbovePlatform()
+      playerAlmostLanded = scene?.checkPlayerRightAbovePlatform() ?? false
     }
 
     if (
@@ -204,7 +231,7 @@ export default class Player extends Phaser.GameObjects.Container {
       this.isJumping = true
       this.jumpStartTime = this.scene.time.now
       this.completePlayerTweens()
-      ;(this.scene as GameScene).audioManager.playSfx(AudioKey.SfxJump)
+      scene?.audioManager.playSfx(AudioKey.SfxJump)
 
       if (this.jumpCount === 1) {
         this.scene.tweens.add({
@@ -253,6 +280,7 @@ export default class Player extends Phaser.GameObjects.Container {
   }
 
   teleportTo(target: Phaser.GameObjects.Arc, onComplete: Function) {
+    this.trailEmitter.stop()
     const timeline = this.scene.add.timeline([
       {
         at: 0,
@@ -297,5 +325,14 @@ export default class Player extends Phaser.GameObjects.Container {
       },
     ])
     timeline.play()
+  }
+
+  setTrail(trail: Trail) {
+    this.trail = trail
+    if (this.trail === Trail.Particles) {
+      this.trailEmitter.start()
+    } else {
+      this.trailEmitter.stop()
+    }
   }
 }

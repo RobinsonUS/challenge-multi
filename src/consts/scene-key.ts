@@ -10,6 +10,8 @@ enum SceneKey {
   HUD = 'hud',
   Editor = 'editor',
   Game = 'game',
+  Shop = 'shop',
+  Trail = 'trail',
 }
 
 export default SceneKey

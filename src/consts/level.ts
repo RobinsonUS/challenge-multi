@@ -44,6 +44,20 @@ export enum Theme {
   Volcano = 'volcano',
 }
 
+export enum Trail {
+  None,
+  Particles,
+}
+
+export interface TrailData {
+  cost: number
+}
+
+export const TRAIL_COSTS: Record<Trail, TrailData> = {
+  [Trail.None]: { cost: 0 },
+  [Trail.Particles]: { cost: 30 },
+}
+
 export interface ThemeColors {
   background: number
   platform: number

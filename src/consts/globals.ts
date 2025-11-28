@@ -25,11 +25,13 @@ export const BUMP_OFF_VELOCITY = 1200
 export const BUMP_DISABLE_DURATION = 2000
 export const LAVA_BALL_DELAY = 3000
 export const LAVA_BALL_VELOCITY = -2000
-export const MOVING_PLATFORM_SPEED = 320
+export const MOVING_PLATFORM_SPEED = 240
 
 export enum DepthLayer {
   Fireball,
   Cannon,
+  Trail,
+  Bobby,
 }
 
 export enum PlayerMode {

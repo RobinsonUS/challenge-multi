@@ -33,7 +33,7 @@ import SceneKey from '../consts/scene-key'
 import TextureKey, { IconsKey } from '../consts/texture-key'
 import { levelsData } from '../levels'
 import { addDesignEvent, addProgressionEvent, ProgressionEventType } from '../utils/analytics'
-import { getLevelTotalCoins, unlockLevel } from '../utils/level'
+import { getCurrentTrail, getLevelTotalCoins, unlockLevel } from '../utils/level'
 import { transitionEventsEmitter } from '../utils/transition'
 import { isTouchingFromAbove } from '../utils/helpers'
 import AudioScene from './audio-scene'
@@ -403,7 +403,9 @@ export default class GameScene extends Phaser.Scene {
     const startingPos = this.isCheckpointActive
       ? { x: this.levelData.checkpoint!.x - TILE_SIZE, y: this.levelData.checkpoint!.y }
       : this.levelData.player
+    const trail = getCurrentTrail()
     this.player = new Player(this, startingPos.x, startingPos.y)
+    this.player.setTrail(trail)
     this.playerStartPos = null
     if (this.isCustomLevel && !this.isCustomLevelRun) {
       this.playerStartPos = this.add.rectangle(
@@ -893,6 +895,7 @@ export default class GameScene extends Phaser.Scene {
       platforms: platformsCells,
       ...(level.spikes && { spikes: convertSpikesToCells(level.spikes) }),
       ...(level.fallingBlocks && { fallingBlocks: convertFallingBlocksToCells(level.fallingBlocks) }),
+      ...(level.oneWayPlatforms && { oneWayPlatforms: convertPlatformsToCells(level.oneWayPlatforms) }),
     })
 
     if (shouldRestart) {
@@ -1223,6 +1226,7 @@ export default class GameScene extends Phaser.Scene {
       this.spikes.add(spike)
 
       if (falling) {
+        console.log('ok', data)
         const trigger = this.add.zone(spike.x, spike.y - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE * 6).setOrigin(0.5, 0)
         trigger.setData('spike', spike)
         this.spikesTriggers.add(trigger)

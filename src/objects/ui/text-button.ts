@@ -9,6 +9,7 @@ export default class TextButton extends Phaser.GameObjects.Container {
   private previousY: number
   private _text: string
   private textObject: Phaser.GameObjects.Text
+  private enabled: boolean = true
 
   get text() {
     return this._text
@@ -17,6 +18,8 @@ export default class TextButton extends Phaser.GameObjects.Container {
   set text(text: string) {
     this._text = text
     this.textObject.setText(text)
+    Phaser.Display.Align.In.Center(this.textObject, this.up)
+    this.textObject.y = this.previousY + 4
   }
 
   constructor(scene: Phaser.Scene, x: number, y: number, text: string, onPointerDown: Function) {
@@ -44,6 +47,7 @@ export default class TextButton extends Phaser.GameObjects.Container {
     this.on(
       'pointerdown',
       (...args: any[]) => {
+        if (!this.enabled) return
         this.onHover()
         onPointerDown.call(scene, ...args)
         ;(this.scene.scene.get(SceneKey.Audio) as AudioScene).playSfx(AudioKey.SfxButton)
@@ -53,14 +57,26 @@ export default class TextButton extends Phaser.GameObjects.Container {
   }
 
   onHover() {
+    if (!this.enabled) return
     this.up.setVisible(false)
     this.over.setVisible(true)
     this.textObject.y = this.previousY + 4
   }
 
   onUp() {
+    if (!this.enabled) return
     this.up.setVisible(true)
     this.over.setVisible(false)
     this.textObject.y = this.previousY
+  }
+
+  disable() {
+    this.onHover()
+    this.enabled = false
+  }
+
+  enable() {
+    this.enabled = true
+    this.onUp()
   }
 }

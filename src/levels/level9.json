@@ -74,7 +74,6 @@
   ],
   "fallingBlocks": [{ "x": 6800, "y": 7200, "num": 9 }],
   "spikyBalls": [{ "x": 7760, "y": 7520 }],
-  "oneWayPlatforms": [],
   "coins": [
     { "x": 4800, "y": 8400 },
     { "x": 4160, "y": 8400 },

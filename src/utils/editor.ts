@@ -5,16 +5,25 @@ export function convertPointerToPos(pos: number) {
   return Math.floor(pos / TILE_SIZE) * TILE_SIZE
 }
 
-export function convertPlatformsToCells(platforms: LevelPlatform[]) {
-  const cells: LevelPlatform[] = []
+export function convertPlatformsToCells<T extends { x: number; y: number; width: number }>(platforms: T[]): T[] {
+  const cells: T[] = []
 
-  platforms.forEach(({ x, y, width, height }) => {
+  platforms.forEach((platform) => {
+    if ('points' in platform) {
+      cells.push(platform)
+      return
+    }
+
+    const { x, y, width } = platform
     const cols = width / TILE_SIZE
+
+    const height = 'height' in platform ? (platform as any).height : TILE_SIZE
     const rows = height / TILE_SIZE
 
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         cells.push({
+          ...platform,
           x: x + col * TILE_SIZE,
           y: y + row * TILE_SIZE,
           width: TILE_SIZE,
@@ -204,11 +213,9 @@ export function getPlatformsFromGrid(cells: LevelPlatform[]) {
 }
 
 export function getOneWayPlatformsFromGrid(cells: LevelOneWayPlatform[]) {
-  if (cells.some(({ width, points }) => width !== TILE_SIZE || points?.length)) {
-    return cells
-  }
+  const filterdCells = cells.filter(({ width, points }) => width === TILE_SIZE && !points?.length)
 
-  const platforms = [...cells].sort((a, b) => a.y - b.y || a.x - b.x)
+  const platforms = [...filterdCells].sort((a, b) => a.y - b.y || a.x - b.x)
   const platformMap = new Map()
   platforms.forEach(({ x, y }) => {
     platformMap.set(`${x},${y}`, { x, y })
@@ -237,5 +244,5 @@ export function getOneWayPlatformsFromGrid(cells: LevelOneWayPlatform[]) {
     platformMap.delete(key)
   })
 
-  return groupedRows
+  return [...cells.filter(({ width, points }) => width !== TILE_SIZE || points?.length), ...groupedRows]
 }
