@@ -1,4 +1,4 @@
-import { TILE_SIZE } from '../consts/globals'
+import { MOVING_PLATFORM_TRIGGER_DELAY, TILE_SIZE } from '../consts/globals'
 import { LevelPosition } from '../consts/level'
 
 export interface OneWayPlatformFollower {
@@ -8,6 +8,7 @@ export interface OneWayPlatformFollower {
 }
 
 export default class OneWayPlatform extends Phaser.GameObjects.Rectangle {
+  private trigger: boolean
   private _isMoving = false
   private _follower?: OneWayPlatformFollower
 
@@ -19,8 +20,17 @@ export default class OneWayPlatform extends Phaser.GameObjects.Rectangle {
     return this._follower
   }
 
-  constructor(scene: Phaser.Scene, x: number, y: number, width: number, points?: LevelPosition[]) {
+  get isTrigger() {
+    return this.trigger
+  }
+
+  get isActivated() {
+    return this.trigger && this._isMoving
+  }
+
+  constructor(scene: Phaser.Scene, x: number, y: number, width: number, points?: LevelPosition[], trigger = false) {
     super(scene, x, y, width, TILE_SIZE / 2, 0xe8b796)
+    this.trigger = trigger
     this.setOrigin(0)
     scene.physics.add.existing(this)
     const body = this.body as Phaser.Physics.Arcade.Body
@@ -36,12 +46,27 @@ export default class OneWayPlatform extends Phaser.GameObjects.Rectangle {
       path.lineTo(points[i].x, points[i].y)
     }
 
-    path.lineTo(x, y)
-    this._isMoving = true
+    if (!this.trigger) {
+      path.lineTo(x, y)
+    }
+
+    this._isMoving = !this.trigger
     this._follower = {
       path,
       t: 0,
       vec: new Phaser.Math.Vector2(),
     }
+  }
+
+  public activate() {
+    if (!this.trigger) return
+    this.scene.time.delayedCall(MOVING_PLATFORM_TRIGGER_DELAY, () => {
+      this._isMoving = true
+    })
+  }
+
+  public deactivate() {
+    if (!this.trigger) return
+    this._isMoving = false
   }
 }

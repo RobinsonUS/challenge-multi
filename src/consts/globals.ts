@@ -26,6 +26,7 @@ export const BUMP_DISABLE_DURATION = 2000
 export const LAVA_BALL_DELAY = 3000
 export const LAVA_BALL_VELOCITY = -2000
 export const MOVING_PLATFORM_SPEED = 240
+export const MOVING_PLATFORM_TRIGGER_DELAY = 500
 
 export enum DepthLayer {
   Fireball,

@@ -224,7 +224,7 @@ export default class GameScene extends Phaser.Scene {
         this.isReady = true
       },
       [],
-      this
+      this,
     )
     this.isTransitionning = false
     this.worldWidth = this.levelData.world.width
@@ -414,7 +414,7 @@ export default class GameScene extends Phaser.Scene {
         TILE_SIZE,
         TILE_SIZE,
         0xffffff,
-        0.5
+        0.5,
       )
     }
 
@@ -424,7 +424,7 @@ export default class GameScene extends Phaser.Scene {
       TILE_SIZE,
       TILE_SIZE,
       0xffffff,
-      0
+      0,
     )
     this.physics.add.existing(this.playerShadowHitbox, true)
 
@@ -446,7 +446,7 @@ export default class GameScene extends Phaser.Scene {
       this.spikesTriggers,
       this.handleFallingSpikeCollision,
       undefined,
-      this
+      this,
     )
     this.physics.add.overlap(this.player, this.lava, this.die, undefined, this)
     this.physics.add.overlap(this.player, this.fireballs, this.die, undefined, this)
@@ -457,7 +457,7 @@ export default class GameScene extends Phaser.Scene {
       this.player,
       this.handleEnemiesCollision,
       undefined,
-      this
+      this,
     )
 
     // Ajouter la collision entre le joueur, les ennemis et le sol
@@ -469,7 +469,7 @@ export default class GameScene extends Phaser.Scene {
       this.oneWayPlatforms,
       this.stickPlayerToPlatform,
       undefined,
-      this
+      this,
     )
     this.physics.add.collider(this.enemies, this.platformsHitbox)
     this.physics.add.collider(this.enemies, this.oneWayPlatforms)
@@ -481,14 +481,14 @@ export default class GameScene extends Phaser.Scene {
       this.fallingBlocksTriggers,
       this.handleFallingBlockCollision,
       undefined,
-      this
+      this,
     )
     this.transformersTriggers = this.physics.add.overlap(
       this.player,
       this.transformers,
       this.handleTransformerCheck,
       undefined,
-      this
+      this,
     )
 
     this.bumpsCollider = this.physics.add.overlap(this.player, this.bumps, this.handleBumpJump, undefined, this)
@@ -508,7 +508,7 @@ export default class GameScene extends Phaser.Scene {
         this.checkpoint,
         this.handleCheckpoint,
         undefined,
-        this
+        this,
       )
     }
 
@@ -1124,7 +1124,7 @@ export default class GameScene extends Phaser.Scene {
           this,
           newX + (TILE_SIZE - COIN_SIZE) / 2,
           newY + (TILE_SIZE - COIN_SIZE) / 2,
-          coinIndex - 1
+          coinIndex - 1,
         )
 
         this.coins.add(coin)
@@ -1200,14 +1200,21 @@ export default class GameScene extends Phaser.Scene {
   }
 
   addOneWayPlatform(data: LevelOneWayPlatform) {
-    const { x, y, width, points } = data
-    const platform = new OneWayPlatform(this, x, y, width, points)
+    const { x, y, width, points, trigger = false } = data
+    const platform = new OneWayPlatform(this, x, y, width, points, trigger)
     this.oneWayPlatforms.add(platform)
     this.addMapItem(x, y, { type: EditorType.OneWayPlatform, object: platform, data })
   }
 
-  stickPlayerToPlatform: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_: any, platform: any) => {
-    if (!(platform as OneWayPlatform).isMoving || this.player.stickedPlatform) return
+  stickPlayerToPlatform: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (_: any, obj: any) => {
+    const platform = obj as OneWayPlatform
+    if (platform.isTrigger && !platform.isActivated) {
+      platform.activate()
+      this.player.stickedPlatform = platform
+      return
+    }
+
+    if (!platform.isMoving || this.player.stickedPlatform) return
     this.player.stickedPlatform = platform
   }
 
@@ -1220,13 +1227,12 @@ export default class GameScene extends Phaser.Scene {
         this,
         x + TILE_SIZE / 2 + (!isVertical ? TILE_SIZE * i : 0),
         y + TILE_SIZE / 2 + (isVertical ? TILE_SIZE * i : 0),
-        dir
+        dir,
       )
 
       this.spikes.add(spike)
 
       if (falling) {
-        console.log('ok', data)
         const trigger = this.add.zone(spike.x, spike.y - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE * 6).setOrigin(0.5, 0)
         trigger.setData('spike', spike)
         this.spikesTriggers.add(trigger)
@@ -1323,7 +1329,7 @@ export default class GameScene extends Phaser.Scene {
 
   handleFallingBlockCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (
     _: any,
-    fallingBlockTrigger: any
+    fallingBlockTrigger: any,
   ) => {
     const fallingBlock = fallingBlockTrigger.getData('block') as FallingBlock
     if (!(this.player.body as Phaser.Physics.Arcade.Body).blocked.down || fallingBlockTrigger.getData('isTriggered'))
@@ -1334,7 +1340,7 @@ export default class GameScene extends Phaser.Scene {
 
   handleFallingSpikeCollision: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (
     _: any,
-    fallingSpikeTrigger: any
+    fallingSpikeTrigger: any,
   ) => {
     const spike = fallingSpikeTrigger.getData('spike') as Spike
     if (fallingSpikeTrigger.getData('isTriggered')) return
@@ -1495,7 +1501,11 @@ export default class GameScene extends Phaser.Scene {
         const duration = (pathLength / MOVING_PLATFORM_SPEED) * 1000
         follower.t += delta / duration
         if (follower.t >= 1) {
-          follower.t = 0
+          if (platform.isActivated) {
+            platform.deactivate()
+          } else {
+            follower.t = 0
+          }
         }
 
         // Déplacement du joueur avec la plateforme
@@ -1520,8 +1530,8 @@ export default class GameScene extends Phaser.Scene {
                 .filter((platform) =>
                   Phaser.Geom.Intersects.RectangleToRectangle(
                     rectDetection,
-                    (platform as Phaser.GameObjects.Sprite).getBounds()
-                  )
+                    (platform as Phaser.GameObjects.Sprite).getBounds(),
+                  ),
                 )
 
               if (collidingPlatforms.length) {

@@ -117,6 +117,7 @@ export interface LevelEventBlock extends LevelPosition, Partial<LevelSize> {}
 
 export interface LevelOneWayPlatform extends LevelPosition, Pick<LevelSize, 'width'> {
   points?: LevelPosition[]
+  trigger?: boolean
 }
 
 export interface LevelTransformer extends LevelPosition, Partial<LevelSize> {
