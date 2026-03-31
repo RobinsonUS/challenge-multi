@@ -12,6 +12,8 @@ enum SceneKey {
   Game = 'game',
   Shop = 'shop',
   Trail = 'trail',
+  Lobby = 'lobby',
+  MultiGame = 'multiGame',
 }
 
 export default SceneKey
