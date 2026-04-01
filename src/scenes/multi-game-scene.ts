@@ -2,53 +2,48 @@ import { Socket } from 'socket.io-client'
 import { DataLevel } from '../consts/level'
 import SceneKey from '../consts/scene-key'
 import GameScene from './game-scene'
-import Player from '../objects/player'
-import { Trail } from '../consts/level'
 import { PLAYER_SIZE } from '../consts/globals'
 import TextureKey from '../consts/texture-key'
 
 interface RemotePlayer {
   sprite: Phaser.GameObjects.Rectangle
   nameText: Phaser.GameObjects.Text
-  x: number
-  y: number
-}
-
-interface MultiGameSceneProps {
-  mapData: DataLevel
-  roomId: string
-  socket: Socket
-  existingPlayers: Record<string, { x: number; y: number; name: string }>
 }
 
 export default class MultiGameScene extends GameScene {
   private socket!: Socket
-  private roomId!: string
   private remotePlayers: Map<string, RemotePlayer> = new Map()
   private lastSentX: number = 0
   private lastSentY: number = 0
-  private sendInterval: number = 50 // ms entre chaque envoi de position
 
   constructor() {
     super()
-    this.scene.key = SceneKey.MultiGame
   }
 
-  init(data: MultiGameSceneProps) {
+  init(data: any) {
     super.init({ level: data.mapData })
     this.socket = data.socket
-    this.roomId = data.roomId
 
     // Créer les sprites des joueurs déjà présents
-    Object.entries(data.existingPlayers || {}).forEach(([id, player]) => {
+    Object.entries(data.existingPlayers || {}).forEach(([id, player]: [string, any]) => {
       if (id !== this.socket.id) {
-        this.spawnRemotePlayer(id, player.x, player.y, player.name)
+        this.pendingRemotePlayers = this.pendingRemotePlayers || []
+        this.pendingRemotePlayers.push({ id, x: player.x, y: player.y, name: player.name })
       }
     })
   }
 
+  private pendingRemotePlayers: Array<{ id: string; x: number; y: number; name: string }> = []
+
   create() {
     super.create()
+
+    // Spawner les joueurs en attente maintenant que la scène est prête
+    this.pendingRemotePlayers.forEach(({ id, x, y, name }) => {
+      this.spawnRemotePlayer(id, x, y, name)
+    })
+    this.pendingRemotePlayers = []
+
     this.setupSocketEvents()
   }
 
@@ -62,25 +57,23 @@ export default class MultiGameScene extends GameScene {
       color: '#ffffff',
     }).setOrigin(0.5).setDepth(6)
 
-    this.remotePlayers.set(id, { sprite, nameText, x, y })
+    this.remotePlayers.set(id, { sprite, nameText })
   }
 
   setupSocketEvents() {
-    this.socket.on('player_joined', ({ id, x, y, name }) => {
+    this.socket.on('player_joined', ({ id, x, y, name }: { id: string; x: number; y: number; name: string }) => {
       this.spawnRemotePlayer(id, x, y, name)
     })
 
-    this.socket.on('player_moved', ({ id, x, y }) => {
+    this.socket.on('player_moved', ({ id, x, y }: { id: string; x: number; y: number }) => {
       const remote = this.remotePlayers.get(id)
       if (remote) {
         remote.sprite.setPosition(x, y)
         remote.nameText.setPosition(x, y - 60)
-        remote.x = x
-        remote.y = y
       }
     })
 
-    this.socket.on('player_left', ({ id }) => {
+    this.socket.on('player_left', ({ id }: { id: string }) => {
       const remote = this.remotePlayers.get(id)
       if (remote) {
         remote.sprite.destroy()
@@ -93,7 +86,6 @@ export default class MultiGameScene extends GameScene {
   update(time: number, delta: number) {
     super.update(time, delta)
 
-    // Envoyer la position du joueur local toutes les 50ms
     if (this.playerRef) {
       const { x, y } = this.playerRef
       const dx = Math.abs(x - this.lastSentX)
