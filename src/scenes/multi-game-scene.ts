@@ -2,6 +2,7 @@ import { Socket } from 'socket.io-client'
 import GameScene from './game-scene'
 import { PLAYER_SIZE } from '../consts/globals'
 import TextureKey from '../consts/texture-key'
+import SceneKey from '../consts/scene-key'
 
 interface RemotePlayer {
   sprite: Phaser.GameObjects.Rectangle
@@ -16,7 +17,7 @@ export default class MultiGameScene extends GameScene {
   private pendingRemotePlayers: Array<{ id: string; x: number; y: number; name: string }> = []
 
   constructor() {
-    super()
+    super({ key: SceneKey.MultiGame })
   }
 
   init(data: any) {
