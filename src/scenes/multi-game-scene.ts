@@ -38,7 +38,6 @@ export default class MultiGameScene extends GameScene {
       this.spawnRemotePlayer(id, x, y, name)
     })
     this.pendingRemotePlayers = []
-
     this.setupSocketEvents()
   }
 
