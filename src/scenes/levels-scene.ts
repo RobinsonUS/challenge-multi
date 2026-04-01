@@ -56,8 +56,11 @@ export default class LevelsScene extends Phaser.Scene {
 
     new IconButton(this, 80, 80, IconsKey.Back, () => this.goToScreen(SceneKey.Intro))
     new IconButton(this, width - 80, 80, IconsKey.Shop, () => this.goToScreen(SceneKey.Shop))
-    new TextButton(this, width / 2, height - 120, 'Éditeur de niveaux', () => {
+    new TextButton(this, width / 2 - 300, height - 120, 'Éditeur de niveaux', () => {
       this.goToScreen(SceneKey.Game, { level: customLevel })
+    })
+    new TextButton(this, width / 2 + 300, height - 120, 'Multijoueur', () => {
+      this.goToScreen(SceneKey.Lobby)
     })
 
     // Niveaux
