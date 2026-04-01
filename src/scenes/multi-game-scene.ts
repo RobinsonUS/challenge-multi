@@ -1,6 +1,4 @@
 import { Socket } from 'socket.io-client'
-import { DataLevel } from '../consts/level'
-import SceneKey from '../consts/scene-key'
 import GameScene from './game-scene'
 import { PLAYER_SIZE } from '../consts/globals'
 import TextureKey from '../consts/texture-key'
@@ -15,6 +13,7 @@ export default class MultiGameScene extends GameScene {
   private remotePlayers: Map<string, RemotePlayer> = new Map()
   private lastSentX: number = 0
   private lastSentY: number = 0
+  private pendingRemotePlayers: Array<{ id: string; x: number; y: number; name: string }> = []
 
   constructor() {
     super()
@@ -24,21 +23,16 @@ export default class MultiGameScene extends GameScene {
     super.init({ level: data.mapData })
     this.socket = data.socket
 
-    // Créer les sprites des joueurs déjà présents
     Object.entries(data.existingPlayers || {}).forEach(([id, player]: [string, any]) => {
       if (id !== this.socket.id) {
-        this.pendingRemotePlayers = this.pendingRemotePlayers || []
         this.pendingRemotePlayers.push({ id, x: player.x, y: player.y, name: player.name })
       }
     })
   }
 
-  private pendingRemotePlayers: Array<{ id: string; x: number; y: number; name: string }> = []
-
   create() {
     super.create()
 
-    // Spawner les joueurs en attente maintenant que la scène est prête
     this.pendingRemotePlayers.forEach(({ id, x, y, name }) => {
       this.spawnRemotePlayer(id, x, y, name)
     })
