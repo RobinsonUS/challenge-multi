@@ -11,6 +11,8 @@ import EditorScene from './scenes/editor-scene'
 import ShopScene from './scenes/shop-scene'
 import GameScene from './scenes/game-scene'
 import TrailScene from './scenes/trail-scene'
+import LobbyScene from './scenes/lobby-scene'
+import MultiGameScene from './scenes/multi-game-scene'
 
 export const GameConfig: Phaser.Types.Core.GameConfig = {
   title: 'Hey Bobby',
@@ -50,5 +52,7 @@ export const GameConfig: Phaser.Types.Core.GameConfig = {
     SettingsScene,
     ShopScene,
     TrailScene,
+    LobbyScene,
+    MultiGameScene,
   ],
 }
