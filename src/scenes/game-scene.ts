@@ -163,8 +163,8 @@ export default class GameScene extends Phaser.Scene {
   private currentItem: EditorItem | null = null
   private currentItemIcon: Phaser.GameObjects.Image | null = null
 
-  constructor() {
-    super({ key: SceneKey.Game })
+  constructor(config?: Phaser.Types.Scenes.SettingsConfig) {
+    super(config ?? { key: SceneKey.Game })
   }
 
   get audioManager() {
