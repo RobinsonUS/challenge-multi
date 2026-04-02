@@ -36,7 +36,10 @@ export default class MultiGameScene extends GameScene {
 create() {
     super.create()
 
-    // Afficher le code de room en permanence
+    if (!this.sys.game.device.os.desktop) {
+      this.scene.launch(SceneKey.HUD)
+    }
+
     this.add.text(16, 16, `Room : ${this.roomId}`, {
       fontFamily: TextureKey.FontHeading,
       fontSize: '32px',
