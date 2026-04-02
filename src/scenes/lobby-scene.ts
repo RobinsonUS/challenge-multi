@@ -49,7 +49,6 @@ export default class LobbyScene extends Phaser.Scene {
     }).setOrigin(0.5)
 
     // Zone de saisie du code map
-    let mapInput = ''
     const mapInputText = this.add.text(width / 2, 320, '[ coller ici avec Ctrl+V ]', {
       fontFamily: TextureKey.FontBody,
       fontSize: '28px',
