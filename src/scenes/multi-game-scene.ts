@@ -37,7 +37,7 @@ create() {
     super.create()
 
     // Afficher le code de room en permanence
-    const roomLabel = this.add.text(16, 16, `Room : ${this.roomId}`, {
+    this.add.text(16, 16, `Room : ${this.roomId}`, {
       fontFamily: TextureKey.FontHeading,
       fontSize: '32px',
       color: '#ffffff',
