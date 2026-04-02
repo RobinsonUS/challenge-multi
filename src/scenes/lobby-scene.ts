@@ -5,14 +5,20 @@ import { DataLevel } from '../consts/level'
 import EventKey from '../consts/event-key'
 import { transitionEventsEmitter } from '../utils/transition'
 import customLevel from '../levels/custom.json'
+import {
+  convertFallingBlocksToCells,
+  convertPlatformsToCells,
+  convertSpikesToCells,
+} from '../utils/editor'
 
 const SERVER_URL = 'https://bobby-server.onrender.com'
 
 export default class LobbyScene extends Phaser.Scene {
   private socket!: Socket
-  private roomIdText!: Phaser.GameObjects.Text
   private statusText!: Phaser.GameObjects.Text
   private playerName: string = 'Joueur'
+  private mapData: DataLevel = customLevel as unknown as DataLevel
+  private mapLabel!: Phaser.GameObjects.Text
 
   constructor() {
     super({ key: SceneKey.Lobby })
@@ -23,58 +29,120 @@ export default class LobbyScene extends Phaser.Scene {
 
     this.socket = io(SERVER_URL)
 
-    this.add.text(width / 2, 80, 'MULTIJOUEUR', {
+    this.add.text(width / 2, 60, 'MULTIJOUEUR', {
       fontFamily: TextureKey.FontHeading,
-      fontSize: '96px',
+      fontSize: '80px',
       color: '#262b44',
     }).setOrigin(0.5, 0)
 
-    // Bouton créer une room
-    this.add.text(width / 2 - 300, height / 2 - 100, 'Créer une room', {
+    // --- Import de map ---
+    this.mapLabel = this.add.text(width / 2, 200, 'Map : carte par défaut', {
       fontFamily: TextureKey.FontHeading,
-      fontSize: '48px',
+      fontSize: '36px',
+      color: '#262b44',
+    }).setOrigin(0.5)
+
+    this.add.text(width / 2, 260, 'Importer une map (coller le code exporté)', {
+      fontFamily: TextureKey.FontHeading,
+      fontSize: '28px',
+      color: '#888',
+    }).setOrigin(0.5)
+
+    // Zone de saisie du code map
+    let mapInput = ''
+    const mapInputText = this.add.text(width / 2, 320, '[ coller ici avec Ctrl+V ]', {
+      fontFamily: TextureKey.FontBody,
+      fontSize: '28px',
+      color: '#444',
+      backgroundColor: '#ffffff',
+      padding: { x: 16, y: 8 },
+    }).setOrigin(0.5)
+
+    this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
+      // Ctrl+V ou Cmd+V
+      if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+        navigator.clipboard.readText().then((text) => {
+          try {
+            const decoded = JSON.parse(atob(text))
+            const platformsCells = convertPlatformsToCells(decoded.platforms)
+            this.mapData = {
+              ...decoded,
+              platforms: platformsCells,
+              ...(decoded.spikes && { spikes: convertSpikesToCells(decoded.spikes) }),
+              ...(decoded.fallingBlocks && { fallingBlocks: convertFallingBlocksToCells(decoded.fallingBlocks) }),
+              ...(decoded.oneWayPlatforms && { oneWayPlatforms: convertPlatformsToCells(decoded.oneWayPlatforms) }),
+            }
+            mapInputText.setText('✓ Map importée !')
+            this.mapLabel.setText('Map : map importée')
+          } catch {
+            mapInputText.setText('✗ Code invalide')
+          }
+        })
+      }
+    })
+
+    // Séparateur
+    this.add.rectangle(width / 2, 400, width - 200, 2, 0xcccccc).setOrigin(0.5)
+
+    // --- Créer une room ---
+    this.add.text(width / 4, 460, 'CRÉER', {
+      fontFamily: TextureKey.FontHeading,
+      fontSize: '52px',
+      color: '#262b44',
+    }).setOrigin(0.5)
+
+    this.add.text(width / 4, 540, 'Créer une room', {
+      fontFamily: TextureKey.FontHeading,
+      fontSize: '40px',
       color: '#262b44',
     }).setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
+      .on('pointerover', function(this: Phaser.GameObjects.Text) { this.setColor('#e43b44') })
+      .on('pointerout', function(this: Phaser.GameObjects.Text) { this.setColor('#262b44') })
       .on('pointerdown', () => this.createRoom())
 
-    // Champ code room + bouton rejoindre
-    this.statusText = this.add.text(width / 2, height / 2 + 100, '', {
+    // --- Rejoindre une room ---
+    this.add.text((width / 4) * 3, 460, 'REJOINDRE', {
+      fontFamily: TextureKey.FontHeading,
+      fontSize: '52px',
+      color: '#262b44',
+    }).setOrigin(0.5)
+
+    let roomInput = ''
+    const inputDisplay = this.add.text((width / 4) * 3, 540, 'Code : ______', {
       fontFamily: TextureKey.FontHeading,
       fontSize: '40px',
       color: '#262b44',
     }).setOrigin(0.5)
 
-    this.roomIdText = this.add.text(width / 2, height / 2 - 200, '', {
-      fontFamily: TextureKey.FontHeading,
-      fontSize: '64px',
-      color: '#e43b44',
-    }).setOrigin(0.5)
-
-    // Saisie du code room pour rejoindre
-    let roomInput = ''
-    const inputText = this.add.text(width / 2 + 100, height / 2, 'Code room : ____', {
-      fontFamily: TextureKey.FontHeading,
-      fontSize: '48px',
-      color: '#262b44',
-    }).setOrigin(0.5)
-
     this.input.keyboard!.on('keydown', (event: KeyboardEvent) => {
+      if (event.ctrlKey || event.metaKey) return
       if (event.key === 'Backspace') {
         roomInput = roomInput.slice(0, -1)
-      } else if (event.key.length === 1) {
+      } else if (event.key.length === 1 && roomInput.length < 6) {
         roomInput += event.key.toUpperCase()
+      } else if (event.key === 'Enter') {
+        this.joinRoom(roomInput)
       }
-      inputText.setText(`Code room : ${roomInput || '____'}`)
+      inputDisplay.setText(`Code : ${roomInput || '______'}`)
     })
 
-    this.add.text(width / 2 + 300, height / 2 - 100, 'Rejoindre', {
+    this.add.text((width / 4) * 3, 620, 'Rejoindre →', {
       fontFamily: TextureKey.FontHeading,
-      fontSize: '48px',
+      fontSize: '40px',
       color: '#262b44',
     }).setOrigin(0.5)
       .setInteractive({ useHandCursor: true })
+      .on('pointerover', function(this: Phaser.GameObjects.Text) { this.setColor('#e43b44') })
+      .on('pointerout', function(this: Phaser.GameObjects.Text) { this.setColor('#262b44') })
       .on('pointerdown', () => this.joinRoom(roomInput))
+
+    // Status
+    this.statusText = this.add.text(width / 2, height - 180, '', {
+      fontFamily: TextureKey.FontHeading,
+      fontSize: '40px',
+      color: '#e43b44',
+    }).setOrigin(0.5)
 
     // Retour
     this.add.text(80, 80, '←', {
@@ -93,12 +161,11 @@ export default class LobbyScene extends Phaser.Scene {
   }
 
   createRoom() {
-    const mapData = customLevel as unknown as DataLevel
+    this.statusText.setText('Connexion au serveur...')
     this.socket.emit('create_room', {
-      mapData,
-      playerName: this.playerName
+      mapData: this.mapData,
+      playerName: this.playerName,
     })
-    this.statusText.setText('Création de la room...')
   }
 
   joinRoom(roomId: string) {
@@ -106,26 +173,28 @@ export default class LobbyScene extends Phaser.Scene {
       this.statusText.setText('Code invalide !')
       return
     }
-    this.socket.emit('join_room', {
-      roomId,
-      playerName: this.playerName
-    })
     this.statusText.setText('Connexion...')
+    this.socket.emit('join_room', { roomId, playerName: this.playerName })
   }
 
   setupSocketEvents() {
-    this.socket.on('room_created', ({ roomId, mapData }) => {
-      this.roomIdText.setText(`Code : ${roomId}`)
-      this.statusText.setText('Room créée ! En attente de joueurs...')
+    this.socket.on('connect', () => {
+      this.statusText.setText('')
+    })
+
+    this.socket.on('connect_error', () => {
+      this.statusText.setText('Serveur en veille, réessaie dans 30s...')
+    })
+
+    this.socket.on('room_created', ({ roomId, mapData }: { roomId: string; mapData: DataLevel }) => {
       this.startMultiGame(mapData, roomId, this.socket)
     })
 
-    this.socket.on('room_joined', ({ roomId, mapData, players }) => {
-      this.statusText.setText('Connecté !')
+    this.socket.on('room_joined', ({ roomId, mapData, players }: { roomId: string; mapData: DataLevel; players: any }) => {
       this.startMultiGame(mapData, roomId, this.socket, players)
     })
 
-    this.socket.on('error', ({ message }) => {
+    this.socket.on('error', ({ message }: { message: string }) => {
       this.statusText.setText(`Erreur : ${message}`)
     })
   }
