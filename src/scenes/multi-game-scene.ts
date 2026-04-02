@@ -15,6 +15,7 @@ export default class MultiGameScene extends GameScene {
   private lastSentX: number = 0
   private lastSentY: number = 0
   private pendingRemotePlayers: Array<{ id: string; x: number; y: number; name: string }> = []
+  private roomId: string = ''
 
   constructor() {
     super({ key: SceneKey.MultiGame })
@@ -23,6 +24,7 @@ export default class MultiGameScene extends GameScene {
   init(data: any) {
     super.init({ level: data.mapData })
     this.socket = data.socket
+    this.roomId = data.roomId
 
     Object.entries(data.existingPlayers || {}).forEach(([id, player]: [string, any]) => {
       if (id !== this.socket.id) {
@@ -31,15 +33,24 @@ export default class MultiGameScene extends GameScene {
     })
   }
 
-  create() {
+create() {
     super.create()
 
-    this.pendingRemotePlayers.forEach(({ id, x, y, name }) => {
+    // Afficher le code de room en permanence
+    const roomLabel = this.add.text(16, 16, `Room : ${this.roomId}`, {
+      fontFamily: TextureKey.FontHeading,
+      fontSize: '32px',
+      color: '#ffffff',
+      backgroundColor: '#00000088',
+      padding: { x: 12, y: 6 },
+  }).setScrollFactor(0).setDepth(100)
+
+  this.pendingRemotePlayers.forEach(({ id, x, y, name }) => {
       this.spawnRemotePlayer(id, x, y, name)
-    })
-    this.pendingRemotePlayers = []
-    this.setupSocketEvents()
-  }
+  })
+  this.pendingRemotePlayers = []
+  this.setupSocketEvents()
+}
 
   spawnRemotePlayer(id: string, x: number, y: number, name: string) {
     const sprite = this.add.rectangle(x, y, PLAYER_SIZE, PLAYER_SIZE, 0xff6b6b)
