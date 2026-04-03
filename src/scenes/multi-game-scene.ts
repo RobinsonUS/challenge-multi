@@ -3,6 +3,12 @@ import GameScene from './game-scene'
 import { PLAYER_SIZE } from '../consts/globals'
 import TextureKey from '../consts/texture-key'
 import SceneKey from '../consts/scene-key'
+import {
+  convertFallingBlocksToCells,
+  convertPlatformsToCells,
+  convertSpikesToCells,
+} from '../utils/editor'
+import { DataLevel } from '../consts/level'
 
 interface RemotePlayer {
   sprite: Phaser.GameObjects.Rectangle
@@ -22,7 +28,19 @@ export default class MultiGameScene extends GameScene {
   }
 
   init(data: any) {
-    super.init({ level: data.mapData })
+    // On prépare la mapData correctement avant de passer à GameScene
+    // sans déclencher importLevel (qui appellerait restartGame)
+    const rawMap = data.mapData as DataLevel
+    const platformsCells = convertPlatformsToCells(rawMap.platforms)
+    const preparedMap: DataLevel = {
+      ...rawMap,
+      platforms: platformsCells,
+      ...(rawMap.spikes && { spikes: convertSpikesToCells(rawMap.spikes) }),
+      ...(rawMap.fallingBlocks && { fallingBlocks: convertFallingBlocksToCells(rawMap.fallingBlocks) }),
+      ...(rawMap.oneWayPlatforms && { oneWayPlatforms: convertPlatformsToCells(rawMap.oneWayPlatforms) }),
+    }
+
+    super.init({ level: preparedMap })
     this.socket = data.socket
     this.roomId = data.roomId
 
@@ -33,27 +51,61 @@ export default class MultiGameScene extends GameScene {
     })
   }
 
-create() {
+  create() {
     super.create()
 
-    if (!this.sys.game.device.os.desktop) {
-      this.scene.launch(SceneKey.HUD)
-    }
-
+    // Afficher le code de room
     this.add.text(16, 16, `Room : ${this.roomId}`, {
       fontFamily: TextureKey.FontHeading,
       fontSize: '32px',
       color: '#ffffff',
       backgroundColor: '#00000088',
       padding: { x: 12, y: 6 },
-  }).setScrollFactor(0).setDepth(100)
+    }).setScrollFactor(0).setDepth(100)
 
-  this.pendingRemotePlayers.forEach(({ id, x, y, name }) => {
+    // Flèches tactiles manuelles (le HUD solo ne marche pas en multi)
+    if (!this.sys.game.device.os.desktop) {
+      this.addMobileControls()
+    }
+
+    this.pendingRemotePlayers.forEach(({ id, x, y, name }) => {
       this.spawnRemotePlayer(id, x, y, name)
-  })
-  this.pendingRemotePlayers = []
-  this.setupSocketEvents()
-}
+    })
+    this.pendingRemotePlayers = []
+    this.setupSocketEvents()
+  }
+
+  addMobileControls() {
+    const { width, height } = this.scale
+
+    // Flèche gauche
+    const leftBtn = this.add.triangle(
+      180, height - 80,
+      0, 40, 80, 0, 80, 80,
+      0xffffff, 0.5
+    ).setScrollFactor(0).setDepth(100).setInteractive()
+
+    // Flèche droite
+    const rightBtn = this.add.triangle(
+      420, height - 80,
+      0, 0, 80, 40, 0, 80,
+      0xffffff, 0.5
+    ).setScrollFactor(0).setDepth(100).setInteractive()
+
+    // Saut (zone droite de l'écran)
+    const jumpZone = this.add.zone(width - 300, height - 200, 600, 400)
+      .setScrollFactor(0).setDepth(100).setInteractive()
+
+    leftBtn.on('pointerdown', () => this.setTouchLeft(true))
+    leftBtn.on('pointerup', () => this.setTouchLeft(false))
+    leftBtn.on('pointerout', () => this.setTouchLeft(false))
+
+    rightBtn.on('pointerdown', () => this.setTouchRight(true))
+    rightBtn.on('pointerup', () => this.setTouchRight(false))
+    rightBtn.on('pointerout', () => this.setTouchRight(false))
+
+    jumpZone.on('pointerdown', () => this.playerRef?.jump())
+  }
 
   spawnRemotePlayer(id: string, x: number, y: number, name: string) {
     const sprite = this.add.rectangle(x, y, PLAYER_SIZE, PLAYER_SIZE, 0xff6b6b)
