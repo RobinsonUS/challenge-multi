@@ -89,8 +89,8 @@ export default class GameScene extends Phaser.Scene {
   private levelData!: DataLevel
   private _canMove = false
   private isReady = false
-  private touchLeft = false
-  private touchRight = false
+  protected touchLeft = false
+  protected touchRight = false
   private timerStarted = false
   private _playerMode = PlayerMode.Platformer
   private isCheckpointActive = false
@@ -1005,6 +1005,14 @@ export default class GameScene extends Phaser.Scene {
   resetPointers() {
     this.touchLeft = false
     this.touchRight = false
+  }
+
+  setTouchLeft(value: boolean) {
+    this.touchLeft = value
+  }
+
+  setTouchRight(value: boolean) {
+    this.touchRight = value
   }
 
   checkFirstMove() {
